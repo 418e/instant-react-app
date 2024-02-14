@@ -1,0 +1,17 @@
+{
+  "name": "instant-react-app",
+  "version": "1.0.3",
+  "description": "Fastest way to new react project",
+  "main": "./index.js",
+  "bin": {
+    "instant-react-app": "./index.js"
+  },
+  "author": "starion",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "child_process": "^1.0.2",
+    "fs-extra": "^11.2.0",
+    "inquirer": "^7.3.3"
+  }
+}
