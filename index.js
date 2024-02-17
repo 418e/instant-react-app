@@ -38,11 +38,17 @@ const questions = [
     default: "Y",
   },
   {
-    type: "list",
+    type: "confirm",
     name: "appRouter",
-    message: "Which router library would you like to use?",
-    default: "none",
-    choices: ["react-router", "none"],
+    message: "Would you like to use react-router?",
+    default: "Y",
+  },
+  {
+    type: "list",
+    name: "appDF",
+    message: "Would you like to use data fetching libraries?",
+    default: "no",
+    choices: ["swr", "axios", "swr/axios", "no"],
   },
   // soon
   // {
@@ -51,15 +57,6 @@ const questions = [
   //   message: "Which state management library would you like to use?",
   //   default: "none",
   //   choices: ["Redux", "Mobx", "Zustand", "Tanstack-Query", "Recoil", "none"],
-  // },
-  //
-  // soon
-  // {
-  //   type: "list",
-  //   name: "appDF",
-  //   message: "Which data fetching library would you like to use?",
-  //   default: "none",
-  //   choices: ["swr", "axios", "swr/axios", "none"],
   // },
   //
 ];
@@ -113,55 +110,41 @@ async function addTailwind(appName, isTypescript) {
   ]).catch((err) => console.error(`Error adding Tailwind: ${err}`));
 }
 
-function addRouter(appName, appRouter, isTypescript) {
-  switch (appRouter) {
-    case "react-router":
-      const sourceDir =
-        __dirname +
-        (isTypescript
-          ? "/templates/routers/react-router/index.jsx"
-          : "/templates/routers/react-router/index.js");
-      const targetDir = isTypescript
-        ? `./${appName}/src/index.tsx`
-        : `./${appName}/src/index.js`;
+function addRouter(appName, isTypescript) {
+  const sourceDir =
+    __dirname +
+    (isTypescript
+      ? "/templates/routers/react-router/index.jsx"
+      : "/templates/routers/react-router/index.js");
+  const targetDir = isTypescript
+    ? `./${appName}/src/index.tsx`
+    : `./${appName}/src/index.js`;
 
-      return fse.copy(sourceDir, targetDir, {
-        filter: (src) => {
-          return (
-            !src.includes("node_modules") && !src.endsWith("package-lock.json")
-          );
-        },
-        overwrite: true,
-      });
-    case "wouter":
-      break;
-    case "tanstack-router":
-      break;
-  }
+  return fse.copy(sourceDir, targetDir, {
+    filter: (src) => {
+      return (
+        !src.includes("node_modules") && !src.endsWith("package-lock.json")
+      );
+    },
+    overwrite: true,
+  });
 }
-function install(appName, isTailwind, appRouter) {
+function install(appName, isTailwind, appRouter, appDF) {
   return new Promise((resolve, reject) => {
     console.log("installing dependencies...");
     try {
-      cmd.execSync(`cd ${appName} && npm install`, { stdio: "inherit" });
-      if (isTailwind) {
-        cmd.execSync(
-          `cd ${appName} && npm install tailwindcss postcss autoprefixer postcss-loader`,
-          {
-            stdio: "inherit",
-          }
-        );
-      }
-      switch (appRouter) {
-        case "react-router":
-          cmd.execSync(
-            `cd ${appName} && npm install react-router react-router-dom`,
-            {
-              stdio: "inherit",
-            }
-          );
-          break;
-      }
+      cmd.execSync(
+        `cd ${appName} && npm install ${
+          isTailwind && "tailwindcss postcss autoprefixer postcss-loader"
+        } ${appRouter && "react-router react-router-dom"} ${
+          appDF === "swr" && "swr"
+        } ${appDF === "axios" && "axios"} ${
+          appDF === "swr/axios" && "swr axios"
+        }`,
+        {
+          stdio: "inherit",
+        }
+      );
       resolve();
     } catch (error) {
       console.error("Error installing dependencies:", error);
@@ -174,36 +157,33 @@ inquirer.prompt(questions).then(async (answers) => {
     appName,
     isTypescript,
     isTailwind,
+    appDF,
     appRouter,
-    //  appSM, appDF
+    //  appSM,
   } = answers;
   if (!fs.existsSync(appName)) {
-    console.log(`Creating a new React application named ${appName}...`);
+    console.log(`\nCreating a new react application: ${appName}...`);
     cmd.execSync(`mkdir ${appName}`);
   } else {
     console.log(`Directory ${appName} already exists.`);
     return;
   }
   if (isTypescript) {
-    console.log("Installing Typescript boilerplate ...");
+    console.log("Installing Typescript boilerplate...");
     await createTypescript(appName);
-    console.log("Typescript boilerplate successfully created \n");
   } else {
-    console.log("Installing Javascript boilerplate ...");
+    console.log("Installing Javascript boilerplate...");
     await createJavascript(appName);
-    console.log("Javascript boilerplate successfully created \n");
   }
   if (isTailwind) {
-    console.log("Adding Typescript to the project ...");
+    console.log("Adding Tailwind to the project...");
     await addTailwind(appName, isTypescript, appRouter);
-    console.log("Tailwind successfully added \n");
   }
   if (appRouter) {
-    console.log(`Adding ${appRouter} to the project ...`);
-    await addRouter(appName, appRouter, isTypescript);
-    console.log(`${appRouter} successfully added \n`);
+    console.log(`Adding react-router to the project ...`);
+    await addRouter(appName, isTypescript);
   }
-  await install(appName, isTailwind, appRouter).then(() => {
+  await install(appName, isTailwind, appRouter, appDF).then(() => {
     console.log(
       `Successfully installed depedencies! \n\n cd ${appName} \n npm start \n\n Happy Coding!`
     );

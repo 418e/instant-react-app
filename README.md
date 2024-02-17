@@ -9,5 +9,6 @@ npx instant-react-app
 ? What would you like to name your React application? my-react-app
 ? Would you like to use typescript? Yes
 ? Would you like to use tailwind CSS? Yes
-? Which router library would you like to use? react-router
+? Would you like to use react-router? Yes
+? Would you like to use data fetching libraries? swr/axios
 ```
