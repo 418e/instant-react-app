@@ -4,20 +4,6 @@ const cmd = require("child_process");
 const fs = require("fs");
 const fse = require("fs-extra");
 
-const currentNodeVersion = process.versions.node;
-const semver = currentNodeVersion.split(".");
-const major = semver[0];
-
-if (major < 14) {
-  console.error(
-    "You are running Node " +
-      currentNodeVersion +
-      ".\n" +
-      "Spawn React App requires Node 14 or higher. \n" +
-      "Please update your version of Node."
-  );
-  process.exit(1);
-}
 const questions = [
   {
     type: "input",
@@ -26,166 +12,198 @@ const questions = [
     default: "my-react-app",
   },
   {
+    type: "list",
+    name: "appBuild",
+    message: "Which build configuration would like to use?",
+    default: "webpack",
+    choices: ["webpack", "parcel", "vite"],
+  },
+  {
     type: "confirm",
     name: "isTypescript",
     message: "Would you like to use typescript?",
     default: "Y",
   },
   {
-    type: "confirm",
-    name: "isTailwind",
-    message: "Would you like to use tailwind CSS?",
-    default: "Y",
-  },
-  {
-    type: "confirm",
-    name: "appRouter",
-    message: "Would you like to use react-router?",
-    default: "Y",
+    type: "list",
+    name: "appStylings",
+    message: "Which styling library would you like to use?",
+    default: "tailwind",
+    choices: ["tailwind", "none"],
   },
   {
     type: "list",
-    name: "appDF",
-    message: "Would you like to use data fetching libraries?",
-    default: "no",
-    choices: ["swr", "axios", "swr/axios", "no"],
+    name: "appRouter",
+    message: "Which routing library would like to use?",
+    default: "react-router",
+    choices: ["react-router", "none"],
   },
-  // soon
-  // {
-  //   type: "list",
-  //   name: "appSM",
-  //   message: "Which state management library would you like to use?",
-  //   default: "none",
-  //   choices: ["Redux", "Mobx", "Zustand", "Tanstack-Query", "Recoil", "none"],
-  // },
-  //
 ];
-
-function createJavascript(appName) {
-  const sourceDir = __dirname + "/templates/javascript";
+async function importTemplate(template, appName) {
+  const sourceDir = __dirname + "/templates/" + template;
   const targetDir = `./${appName}`;
-
-  return fse
-    .copy(sourceDir, targetDir, {
-      overwrite: true,
-    })
-    .catch((err) =>
-      console.error(`Error creating Javascipt boilerplate: ${err}`)
-    );
-}
-
-function createTypescript(appName) {
-  const sourceDir = __dirname + "/templates/typescript";
-  const targetDir = `./${appName}`;
-
-  return fse
-    .copy(sourceDir, targetDir, {
-      overwrite: true,
-    })
-    .catch((err) =>
-      console.error(`Error creating Typescript boilerplate: ${err}`)
-    );
-}
-async function addTailwind(appName, isTypescript) {
-  const sourceDir =
-    __dirname +
-    (isTypescript
-      ? "/templates/tailwind/tailwind.config.ts"
-      : "/templates/tailwind/tailwind.config.js");
-
-  return Promise.all([
-    fse.copy(sourceDir, `${appName}/tailwind.config.js`, { overwrite: true }),
-    fse.copy(
-      __dirname + "/templates/tailwind/global.css",
-      `${appName}/src/global.css`,
-      {
-        overwrite: true,
-      }
-    ),
-    fse.copy(
-      __dirname + `/templates/tailwind/postcss.config.js`,
-      `${appName}/postcss.config.js`,
-      { overwrite: true }
-    ),
-  ]).catch((err) => console.error(`Error adding Tailwind: ${err}`));
-}
-
-function addRouter(appName, isTypescript) {
-  const sourceDir =
-    __dirname +
-    (isTypescript
-      ? "/templates/routers/react-router/index.jsx"
-      : "/templates/routers/react-router/index.js");
-  const targetDir = isTypescript
-    ? `./${appName}/src/index.tsx`
-    : `./${appName}/src/index.js`;
 
   return fse.copy(sourceDir, targetDir, {
-    filter: (src) => {
-      return (
-        !src.includes("node_modules") && !src.endsWith("package-lock.json")
-      );
-    },
     overwrite: true,
   });
 }
-function install(appName, isTailwind, appRouter, appDF) {
-  return new Promise((resolve, reject) => {
-    console.log("installing dependencies...");
-    try {
-      cmd.execSync(
-        `cd ${appName} && npm install ${
-          isTailwind && "tailwindcss postcss autoprefixer postcss-loader"
-        } ${appRouter && "react-router react-router-dom"} ${
-          appDF === "swr" && "swr"
-        } ${appDF === "axios" && "axios"} ${
-          appDF === "swr/axios" && "swr axios"
-        }`,
-        {
-          stdio: "inherit",
-        }
-      );
-      resolve();
-    } catch (error) {
-      console.error("Error installing dependencies:", error);
-      reject(error);
-    }
-  });
+
+function buildWebpack(isTypescript, appName) {
+  if (isTypescript) {
+    importTemplate("webpack/typescript", appName);
+  } else {
+    importTemplate("webpack/javascript", appName);
+  }
 }
+function buildParcel(isTypescript, appName) {
+  if (isTypescript) {
+    importTemplate("parcel/typescript", appName);
+  } else {
+    importTemplate("parcel/javascript", appName);
+  }
+}
+function buildVite(isTypescript, appName) {
+  if (isTypescript) {
+    importTemplate("vite/typescript", appName);
+  } else {
+    importTemplate("vite/javascript", appName);
+  }
+}
+
+async function installBuild(appBuild, isTypescript, appName) {
+  switch (appBuild) {
+    case "webpack":
+      buildWebpack(isTypescript, appName);
+      break;
+    case "parcel":
+      buildParcel(isTypescript, appName);
+      break;
+    case "vite":
+      buildVite(isTypescript, appName);
+      break;
+  }
+}
+
+async function installLib(templates, appName) {
+  const promises = [];
+  templates.map((template) => {
+    promises.push(
+      fse.copy(
+        __dirname + "/templates/" + template.template,
+        `${appName}/${template.target}`,
+        { overwrite: true }
+      )
+    );
+  });
+  return Promise.all(promises);
+}
+
+function installTailwind(appBuild, appName) {
+  installLib(
+    [
+      { template: "tailwind/tailwind.config.js", target: "tailwind.config.js" },
+      {
+        template: "tailwind/global.css",
+        target: appBuild == "vite" ? "src/global.css" : "src/index.css",
+      },
+      { template: "tailwind/postcss.config.js", target: "postcss.config.js" },
+    ],
+    appName
+  );
+}
+
+function installScss(appBuild, appName) {}
+function installCssInJsx(appBuild, appName) {}
+
+async function installStylings(appStylings, appBuild, appName) {
+  switch (appStylings) {
+    case "tailwind":
+      installTailwind(appBuild, appName);
+      break;
+    case "scss":
+      installScss(appBuild, appName);
+      break;
+    case "cssInJsx":
+      installCssInJsx(appBuild, appName);
+      break;
+  }
+}
+
+function installReactRouter(appBuild, isTypescript, appName) {
+  const template = `routers/react-router/webpack.${
+    isTypescript ? "tsx" : "js"
+  }`;
+  switch (appBuild) {
+    case "webpack":
+      installLib(
+        [
+          {
+            template,
+            target: `src/index.${isTypescript ? "tsx" : "js"}`,
+          },
+        ],
+        appName
+      );
+      break;
+    case "parcel":
+      installLib(
+        [
+          {
+            template,
+            target: `src/index.${isTypescript ? "tsx" : "jsx"}`,
+          },
+        ],
+        appName
+      );
+      break;
+    case "vite":
+      installLib(
+        [
+          {
+            template,
+            target: `src/main.${isTypescript ? "tsx" : "jsx"}`,
+          },
+        ],
+        appName
+      );
+      break;
+  }
+}
+function installWouter(appBuild) {}
+function installTSRouter(appBuild) {}
+
+async function installRouters(appRouter, appBuild, isTypescript, appName) {
+  switch (appRouter) {
+    case "react-router":
+      installReactRouter(appBuild, isTypescript, appName);
+      break;
+    case "wouter":
+      installWouter(appBuild);
+      break;
+    case "tanstack-router":
+      installTSRouter(appBuild);
+      break;
+  }
+}
+
 inquirer.prompt(questions).then(async (answers) => {
-  const {
-    appName,
-    isTypescript,
-    isTailwind,
-    appDF,
-    appRouter,
-    //  appSM,
-  } = answers;
+  const { appName, appBuild, isTypescript, appStylings, appRouter } = answers;
   if (!fs.existsSync(appName)) {
-    console.log(`\nCreating a new react application: ${appName}...`);
     cmd.execSync(`mkdir ${appName}`);
   } else {
     console.log(`Directory ${appName} already exists.`);
     return;
   }
-  if (isTypescript) {
-    console.log("Installing Typescript boilerplate...");
-    await createTypescript(appName);
-  } else {
-    console.log("Installing Javascript boilerplate...");
-    await createJavascript(appName);
-  }
-  if (isTailwind) {
-    console.log("Adding Tailwind to the project...");
-    await addTailwind(appName, isTypescript, appRouter);
-  }
-  if (appRouter) {
-    console.log(`Adding react-router to the project ...`);
-    await addRouter(appName, isTypescript);
-  }
-  await install(appName, isTailwind, appRouter, appDF).then(() => {
-    console.log(
-      `Successfully installed depedencies! \n\n cd ${appName} \n npm start \n\n Happy Coding!`
-    );
-  });
+  await installBuild(appBuild, isTypescript, appName);
+  await installStylings(appStylings, appBuild, appName);
+  await installRouters(appRouter, appBuild, isTypescript, appName);
+  cmd.execSync(
+    `npm install --prefix ${appName} ${
+      appStylings === "tailwind" &&
+      "tailwindcss postcss autoprefixer postcss-loader"
+    } ${appRouter === "react-router" && "react-router react-router-dom"}`,
+    {
+      stdio: "inherit",
+    }
+  );
 });
