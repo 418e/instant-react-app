@@ -199,9 +199,10 @@ inquirer.prompt(questions).then(async (answers) => {
   await installRouters(appRouter, appBuild, isTypescript, appName);
   cmd.execSync(
     `npm install --prefix ${appName} ${
-      appStylings === "tailwind" &&
-      "tailwindcss postcss autoprefixer postcss-loader"
-    } ${appRouter === "react-router" && "react-router react-router-dom"}`,
+      appStylings === "tailwind"
+        ? "tailwindcss postcss autoprefixer postcss-loader"
+        : ""
+    } ${appRouter === "react-router" ? "react-router react-router-dom" : ""}`,
     {
       stdio: "inherit",
     }
